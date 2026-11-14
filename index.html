@@ -96,44 +96,47 @@ svg.chart{width:100%;height:auto;display:block}
 const IMG = 'https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/';
 const E = (id, name, sets, lo, hi, unit) => ({ id, name, sets, lo, hi, unit: unit || 'reps' });
 const WORKOUTS = {
-  push: { name: 'Push', focus: 'Chest, shoulders, triceps', ex: [
-    E('Barbell_Bench_Press_-_Medium_Grip', 'Barbell bench press', 4, 6, 8),
+  chest: { name: 'Chest & Biceps', focus: 'Day 1', ex: [
+    E('Barbell_Bench_Press_-_Medium_Grip', 'Bench press', 4, 6, 8),
     E('Incline_Dumbbell_Press', 'Incline dumbbell press', 3, 8, 10),
-    E('Dumbbell_Shoulder_Press', 'Dumbbell shoulder press', 3, 8, 10),
-    E('Side_Lateral_Raise', 'Side lateral raise', 3, 12, 15),
-    E('Triceps_Pushdown', 'Triceps pushdown', 3, 10, 12),
-    E('Cable_Crunch', 'Cable crunch', 3, 12, 15) ] },
-  pull: { name: 'Pull', focus: 'Back, biceps', ex: [
-    E('Wide-Grip_Lat_Pulldown', 'Lat pulldown', 4, 8, 10),
-    E('Bent_Over_Barbell_Row', 'Bent-over barbell row', 3, 8, 10),
-    E('Seated_Cable_Rows', 'Seated cable row', 3, 10, 12),
-    E('Face_Pull', 'Face pull', 3, 12, 15),
-    E('Barbell_Curl', 'Barbell curl', 3, 10, 12),
-    E('Hammer_Curls', 'Hammer curl', 3, 10, 12) ] },
-  legs: { name: 'Legs', focus: 'Quads, hamstrings, calves', ex: [
-    E('Barbell_Squat', 'Barbell squat', 4, 6, 8),
+    E('Cable_Crossover', 'Cable crossover', 3, 12, 15),
+    E('Incline_Dumbbell_Curl', 'Incline dumbbell curl', 3, 10, 12),
+    E('Preacher_Curl', 'Preacher curl', 3, 10, 12),
+    E('Hammer_Curls', 'Hammer curl', 2, 10, 12) ] },
+  back: { name: 'Back & Triceps', focus: 'Day 2', ex: [
+    E('Pullups', 'Pull-ups (assisted if needed)', 3, 5, 12),
+    E('Bent_Over_Barbell_Row', 'Barbell row', 4, 8, 10),
+    E('Wide-Grip_Lat_Pulldown', 'Lat pulldown', 3, 10, 12),
+    E('Seated_Cable_Rows', 'Seated row', 3, 10, 12),
+    E('EZ-Bar_Skullcrusher', 'Barbell skull crusher', 3, 10, 12),
+    E('Triceps_Pushdown_-_Rope_Attachment', 'Rope pushdown', 3, 12, 15),
+    E('Hanging_Leg_Raise', 'Hanging leg raise', 3, 10, 12) ] },
+  legs: { name: 'Legs', focus: 'Day 4', ex: [
+    E('Smith_Machine_Squat', 'Smith machine squat', 4, 6, 8),
     E('Romanian_Deadlift', 'Romanian deadlift', 3, 8, 10),
     E('Leg_Press', 'Leg press', 3, 10, 12),
-    E('Lying_Leg_Curls', 'Lying leg curl', 3, 10, 12),
-    E('Standing_Calf_Raises', 'Standing calf raise', 4, 12, 15),
-    E('Plank', 'Plank', 3, 30, 60, 'sec') ] },
-  upper: { name: 'Upper', focus: 'Whole upper body, lighter', ex: [
-    E('Dumbbell_Bench_Press', 'Dumbbell bench press', 3, 8, 10),
-    E('One-Arm_Dumbbell_Row', 'One-arm dumbbell row', 3, 8, 10),
-    E('Barbell_Shoulder_Press', 'Barbell shoulder press', 3, 8, 10),
-    E('V-Bar_Pulldown', 'Close-grip pulldown', 3, 10, 12),
-    E('Butterfly', 'Pec deck fly', 3, 12, 15),
-    E('Dumbbell_Bicep_Curl', 'Dumbbell curl', 2, 10, 12),
-    E('Triceps_Pushdown_-_Rope_Attachment', 'Rope pushdown', 2, 10, 12) ] },
-  lower: { name: 'Lower', focus: 'Glutes, legs, core', ex: [
-    E('Leg_Press', 'Leg press', 4, 8, 10),
-    E('Barbell_Hip_Thrust', 'Barbell hip thrust', 3, 8, 10),
-    E('Dumbbell_Lunges', 'Dumbbell lunge (per leg)', 3, 10, 12),
+    E('Bodyweight_Walking_Lunge', 'Walking lunges (per leg)', 3, 10, 12),
+    E('Lying_Leg_Curls', 'Leg curl', 3, 10, 12),
     E('Leg_Extensions', 'Leg extension', 3, 12, 15),
-    E('Seated_Leg_Curl', 'Seated leg curl', 3, 12, 15),
-    E('Seated_Calf_Raise', 'Seated calf raise', 3, 12, 15),
-    E('Hanging_Leg_Raise', 'Hanging leg raise', 3, 10, 12) ] },
+    E('Standing_Calf_Raises', 'Calf raise', 4, 12, 15) ] },
+  shoulders: { name: 'Shoulders & Abs', focus: 'Day 5', ex: [
+    E('Standing_Military_Press', 'Military press', 4, 6, 8),
+    E('Side_Lateral_Raise', 'Dumbbell side raise', 4, 12, 15),
+    E('Reverse_Flyes', 'Rear delt fly', 3, 12, 15),
+    E('Face_Pull', 'Face pull', 3, 12, 15),
+    E('Dumbbell_Shrug', 'Dumbbell shrug', 3, 10, 12),
+    E('Cable_Crunch', 'Cable crunch', 3, 12, 15),
+    E('Plank', 'Plank', 3, 45, 60, 'sec') ] },
+  upper: { name: 'Upper', focus: 'Day 6 · chest, back, arms', ex: [
+    E('Incline_Dumbbell_Press', 'Incline dumbbell press', 3, 8, 10),
+    E('Underhand_Cable_Pulldowns', 'Reverse-grip lat pulldown', 3, 8, 10),
+    E('Butterfly', 'Butterfly machine fly', 3, 12, 15),
+    E('T-Bar_Row_with_Handle', 'T-bar row', 3, 8, 10),
+    E('Barbell_Curl', 'Barbell curl', 3, 10, 12),
+    E('Standing_Dumbbell_Triceps_Extension', 'Dumbbell overhead extension', 3, 10, 12),
+    E('Triceps_Pushdown', 'Straight-bar pushdown', 2, 12, 15) ] },
 };
+const DEFAULT_SCHEDULE = ['chest', 'back', '', 'legs', 'shoulders', 'upper', ''];
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const DEFAULT_SUPPS = [
   { id: 'creatine', name: 'Creatine monohydrate', dose: '3–5 g', when: 'Any time, every day' },
@@ -147,13 +150,17 @@ const DEFAULT_SUPPS = [
 /* ---------- State ---------- */
 const KEY = 'fitness-tracker-v1', TOKEN_KEY = 'fitness-tracker-token';
 const fresh = () => ({ v: 1, updatedAt: 0, profile: null,
-  schedule: ['push', 'pull', 'legs', '', 'upper', 'lower', ''],
+  schedule: DEFAULT_SCHEDULE.slice(),
   supplements: DEFAULT_SUPPS, days: {}, weights: [], measures: [], sessions: [],
   sync: { owner: '', repo: '', path: 'fitness-data.json' } });
 let S = load();
 let tab = 'today', selWorkout = null, progEx = null;
 function load() {
-  try { return Object.assign(fresh(), JSON.parse(localStorage.getItem(KEY)) || {}); } catch (e) { return fresh(); }
+  try { return fix(Object.assign(fresh(), JSON.parse(localStorage.getItem(KEY)) || {})); } catch (e) { return fresh(); }
+}
+function fix(st) { // a schedule saved under an older plan may name workouts that no longer exist
+  if (!Array.isArray(st.schedule) || st.schedule.length !== 7 || st.schedule.some(k => k && !WORKOUTS[k])) st.schedule = DEFAULT_SCHEDULE.slice();
+  return st;
 }
 function save(skipSync) {
   S.updatedAt = Date.now();
@@ -216,8 +223,8 @@ function vToday() {
   <h1>${new Date().toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' })}</h1>
   <p class="sub">Target today: about ${t.kcal} kcal and ${t.protein} g protein</p>
   <div class="card">
-    <div class="row"><div class="grow"><h2 style="margin:0">${w ? esc(w.name) + ' day' : 'Rest day'}</h2>
-      <div class="muted">${w ? esc(w.focus) + ' · ' + w.ex.length + ' exercises + 15–20 min incline walk' : 'Walk 8–10k steps, stretch, sleep well'}</div></div>
+    <div class="row"><div class="grow"><h2 style="margin:0">${w ? esc(w.name) + '' : 'Rest day'}</h2>
+      <div class="muted">${w ? esc(w.focus) + ' · ' + w.ex.length + ' exercises · 5 min warm-up, 15–20 min cardio after' : 'Walk 8–10k steps, stretch, sleep well'}</div></div>
       ${w ? (done ? '<span class="pill">Logged</span>' : `<button class="btn" data-act="start" data-w="${wk}">Start</button>`) : ''}</div>
   </div>
   <div class="card">
@@ -249,7 +256,7 @@ function vToday() {
 }
 
 function vWorkout() {
-  const wk = selWorkout || S.schedule[dayIdx()] || 'push', w = WORKOUTS[wk], d = today();
+  const wk = selWorkout || S.schedule[dayIdx()] || 'chest', w = WORKOUTS[wk], d = today();
   const cur = S.sessions.find(s => s.d === d && s.w === wk);
   return `
   <h1>Workout</h1>
@@ -275,7 +282,7 @@ function vWorkout() {
         }).join('')}</div></div>`;
     }).join('')}
     <div class="row" style="margin-top:6px"><button class="btn grow" data-act="saveWorkout">Save workout</button></div>
-    <div class="muted" style="margin-top:8px">Finish with a 15–20 min incline walk. Exercise photos: free-exercise-db (public domain).</div>
+    <div class="muted" style="margin-top:8px">Warm up for 5 minutes first and finish with 15–20 minutes of treadmill walking or cycling. Exercise photos: free-exercise-db (public domain).</div>
   </div>
   <div class="card"><h2>This week</h2>
     <table><tbody>${DAYS.map((n, i) => `<tr><td style="width:56px">${i === dayIdx() ? '<b>' + n + '</b>' : n}</td><td>${S.schedule[i] ? esc(WORKOUTS[S.schedule[i]].name) + ' <span class="muted">· ' + esc(WORKOUTS[S.schedule[i]].focus) + '</span>' : '<span class="muted">Rest</span>'}</td></tr>`).join('')}</tbody></table>
@@ -420,7 +427,7 @@ async function pull() {
   remoteSha = f.sha;
   const remote = JSON.parse(b64d(f.content));
   if ((remote.updatedAt || 0) > (S.updatedAt || 0)) {
-    S = Object.assign(fresh(), remote); localStorage.setItem(KEY, JSON.stringify(S)); return true;
+    S = fix(Object.assign(fresh(), remote)); localStorage.setItem(KEY, JSON.stringify(S)); return true;
   }
   return false;
 }
@@ -499,7 +506,7 @@ document.addEventListener('change', e => {
   else if (t.id === 'progEx') { progEx = t.value; render(); }
   else if (t.id === 'importFile' && t.files[0]) {
     t.files[0].text().then(txt => { const d = JSON.parse(txt); if (!d || !Array.isArray(d.weights)) throw 0;
-      S = Object.assign(fresh(), d); save(); toast('Backup restored'); render(); }).catch(() => toast('That file is not a valid backup'));
+      S = fix(Object.assign(fresh(), d)); save(); toast('Backup restored'); render(); }).catch(() => toast('That file is not a valid backup'));
   }
 });
 document.addEventListener('visibilitychange', () => { if (!document.hidden) syncNow(false); });
