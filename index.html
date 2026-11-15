@@ -80,6 +80,9 @@ td.x{text-align:right}
 svg.chart{width:100%;height:auto;display:block}
 .legend{display:flex;gap:14px;font-size:12px;color:var(--muted);margin-top:6px;flex-wrap:wrap}
 .legend i{display:inline-block;width:14px;height:3px;vertical-align:middle;margin-right:5px;border-radius:2px}
+.meal{display:flex;gap:8px;align-items:center;padding:8px 0;border-top:1px solid var(--line)}
+.preview{width:100%;max-height:220px;object-fit:cover;border-radius:10px;margin-bottom:10px}
+.err{color:var(--bad);font-size:14px;margin-top:8px}
 .notice{border-left:3px solid var(--warn);padding:8px 12px;font-size:14px;background:var(--bg);border-radius:0 10px 10px 0;margin-bottom:12px}
 #toast{position:fixed;left:50%;bottom:calc(86px + env(safe-area-inset-bottom));transform:translateX(-50%);background:var(--text);color:var(--bg);
   padding:8px 14px;border-radius:999px;font-size:14px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:9}
@@ -148,13 +151,13 @@ const DEFAULT_SUPPS = [
 ];
 
 /* ---------- State ---------- */
-const KEY = 'fitness-tracker-v1', TOKEN_KEY = 'fitness-tracker-token';
+const KEY = 'fitness-tracker-v1', TOKEN_KEY = 'fitness-tracker-token', GEM_KEY = 'fitness-tracker-gemini', GEM_MODEL_KEY = 'fitness-tracker-gemini-model';
 const fresh = () => ({ v: 1, updatedAt: 0, profile: null,
   schedule: DEFAULT_SCHEDULE.slice(),
   supplements: DEFAULT_SUPPS, days: {}, weights: [], measures: [], sessions: [],
   sync: { owner: '', repo: '', path: 'fitness-data.json' } });
 let S = load();
-let tab = 'today', selWorkout = null, progEx = null;
+let tab = 'today', selWorkout = null, progEx = null, meal = null;
 function load() {
   try { return fix(Object.assign(fresh(), JSON.parse(localStorage.getItem(KEY)) || {})); } catch (e) { return fresh(); }
 }
@@ -192,6 +195,9 @@ function targets() {
   return { w, bmr: Math.round(bmr), tdee: Math.round(tdee / 10) * 10,
     kcal: Math.round((tdee - 450) / 50) * 50, protein: Math.round(1.8 * w / 5) * 5 };
 }
+const meals = d => (S.days[d] && S.days[d].meals) || [];
+const dayTotals = d => { const r = S.days[d] || {}, m = meals(d), sum = k => m.reduce((a, x) => a + (x[k] || 0), 0);
+  return { kcal: Math.round(sum('kcal')), protein: Math.round((r.protein || 0) + sum('protein')), carbs: Math.round(sum('carbs')), fat: Math.round(sum('fat')) }; };
 const dayRec = d => S.days[d] || (S.days[d] = { checks: {}, protein: 0 });
 const lastSession = (exId, before) => S.sessions.filter(s => s.sets[exId] && (!before || s.d < before)).sort((a, b) => a.d < b.d ? 1 : -1)[0];
 
@@ -218,7 +224,8 @@ function vToday() {
   const wk = S.schedule[dayIdx()], w = WORKOUTS[wk];
   const done = S.sessions.some(s => s.d === d);
   const ws = sortedWeights(), todayW = ws.find(x => x.d === d);
-  const pct = Math.min(100, Math.round((rec.protein || 0) / t.protein * 100));
+  const tot = dayTotals(d), pct = Math.min(100, Math.round(tot.protein / t.protein * 100)), kpct = Math.min(100, Math.round(tot.kcal / t.kcal * 100));
+  const left = t.kcal - tot.kcal;
   return `
   <h1>${new Date().toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' })}</h1>
   <p class="sub">Target today: about ${t.kcal} kcal and ${t.protein} g protein</p>
@@ -234,14 +241,21 @@ function vToday() {
     <div class="muted" style="margin-top:6px">Weigh after waking, after the toilet, before eating.</div>
   </div>
   <div class="card">
-    <div class="row"><h2 class="grow" style="margin:0">Protein</h2><b>${rec.protein || 0} / ${t.protein} g</b></div>
+    <div class="row"><h2 class="grow" style="margin:0">Calories</h2><b>${tot.kcal} / ${t.kcal} kcal</b></div>
+    <div class="bar"><i style="width:${kpct}%${left < -100 ? ';background:var(--warn)' : ''}"></i></div>
+    <div class="row"><h2 class="grow" style="margin:0">Protein</h2><b>${tot.protein} / ${t.protein} g</b></div>
     <div class="bar"><i style="width:${pct}%"></i></div>
-    <div class="row">
-      <button class="btn ghost small" data-act="prot" data-g="25">+25 g scoop</button>
-      <button class="btn ghost small" data-act="prot" data-g="10">+10 g</button>
-      <button class="btn ghost small" data-act="prot" data-g="30">+30 g meal</button>
-      <button class="btn ghost small" data-act="prot" data-g="-10">−10 g</button>
-    </div>
+    <div class="muted">${left >= 0 ? left + ' kcal left today' : -left + ' kcal over target'} · carbs ${tot.carbs} g · fat ${tot.fat} g</div>
+  </div>
+  <div class="card">
+    <h2>Meals</h2>
+    ${meal ? mealPanel() : `<div class="row">
+      <button class="btn grow" data-act="snap">Snap meal</button>
+      <button class="btn ghost" data-act="manualMeal">Add manually</button>
+      <button class="btn ghost" data-act="scoop">+ Whey scoop</button></div>
+    <input type="file" id="mealFile" accept="image/*" capture="environment" hidden>`}
+    ${meals(d).map(m => `<div class="meal"><div class="grow"><b style="font-size:15px">${esc(m.name)}</b><div class="muted">${m.kcal} kcal · ${m.protein} g protein${m.detail ? ' · ' + esc(m.detail) : ''}</div></div>
+      <button class="linkbtn" data-act="delMeal" data-id="${m.id}" aria-label="Delete ${esc(m.name)}">✕</button></div>`).join('')}
   </div>
   <div class="card">
     <h2>Supplements</h2>
@@ -253,6 +267,60 @@ function vToday() {
     <div class="row"><div class="grow"><input id="steps" inputmode="numeric" placeholder="From your Apple Watch" value="${rec.steps || ''}" aria-label="Steps"></div>
       <button class="btn ghost" data-act="saveSteps">Save</button></div>
   </div>`;
+}
+
+function mealPanel() {
+  const r = meal.res || {}, f = (id, label, v, mode) => `<div><label for="${id}">${label}</label><input id="${id}" inputmode="${mode || 'numeric'}" value="${v != null ? esc(v) : ''}"></div>`;
+  return `${meal.img ? `<img class="preview" alt="Meal photo" src="${meal.img}">` : ''}
+    ${meal.img ? `<label for="ml_note">Note for a better estimate (optional)</label><input id="ml_note" placeholder="e.g. 2 cups rice, fried in coconut oil" value="${esc(meal.note || '')}">
+    <div class="row" style="margin:10px 0"><button class="btn grow" data-act="analyse" ${meal.busy ? 'disabled' : ''}>${meal.busy ? 'Analysing…' : meal.res ? 'Analyse again' : 'Estimate calories'}</button></div>` : ''}
+    ${meal.err ? `<div class="err">${esc(meal.err)}</div>` : ''}
+    ${meal.res || !meal.img ? `<div style="margin-top:6px">${f('ml_name', 'Meal', r.name, 'text')}</div>
+    <div class="grid" style="margin-top:10px">${f('ml_kcal', 'Calories (kcal)', r.kcal)}${f('ml_protein', 'Protein (g)', r.protein)}${f('ml_carbs', 'Carbs (g)', r.carbs)}${f('ml_fat', 'Fat (g)', r.fat)}</div>
+    ${r.detail ? `<div class="muted" style="margin-top:8px">${esc(r.detail)}${r.confidence ? ' · confidence: ' + esc(r.confidence) : ''}. Estimates can be off by 20–40%; correct the numbers if you know better.</div>` : ''}` : ''}
+    <div class="row" style="margin:10px 0 4px">${meal.res || !meal.img ? '<button class="btn grow" data-act="addMeal">Add to today</button>' : ''}<button class="btn ghost ${meal.res || !meal.img ? '' : 'grow'}" data-act="cancelMeal">Cancel</button></div>`;
+}
+function readMealInputs() { if (!meal) return; const g = id => $('#' + id);
+  if (g('ml_note')) meal.note = g('ml_note').value;
+  if (g('ml_name')) meal.res = Object.assign(meal.res || {}, { name: g('ml_name').value, kcal: g('ml_kcal').value, protein: g('ml_protein').value, carbs: g('ml_carbs').value, fat: g('ml_fat').value }); }
+function shrink(file) { // downscale the photo so the upload is small
+  return new Promise((ok, bad) => { const im = new Image(), u = URL.createObjectURL(file);
+    im.onload = () => { const k = Math.min(1, 1024 / Math.max(im.width, im.height)), c = document.createElement('canvas');
+      c.width = Math.round(im.width * k); c.height = Math.round(im.height * k); c.getContext('2d').drawImage(im, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(u); ok(c.toDataURL('image/jpeg', 0.8)); };
+    im.onerror = () => { URL.revokeObjectURL(u); bad(new Error('Could not read that photo')); }; im.src = u; });
+}
+const GEM = 'https://generativelanguage.googleapis.com/v1beta/';
+async function gemFetch(path, body) {
+  const r = await fetch(GEM + path, { method: body ? 'POST' : 'GET', headers: { 'x-goog-api-key': localStorage.getItem(GEM_KEY), 'Content-Type': 'application/json' }, body: body ? JSON.stringify(body) : undefined });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) { const e = new Error(r.status === 400 || r.status === 403 ? 'Gemini rejected the key. Check it in Settings.' : r.status === 429 ? 'Gemini limit reached. Wait a minute and try again.' : (j.error && j.error.message) || 'Gemini error ' + r.status); e.status = r.status; throw e; }
+  return j;
+}
+async function gemModel(refresh) { // newest general Flash model the key can use
+  const set = localStorage.getItem(GEM_MODEL_KEY); if (set) return set;
+  if (!refresh && gemModel.auto) return gemModel.auto;
+  let pick = 'gemini-flash-latest';
+  try { const j = await gemFetch('models?pageSize=200');
+    const c = (j.models || []).filter(m => (m.supportedGenerationMethods || []).includes('generateContent')).map(m => m.name.replace('models/', ''))
+      .map(n => ({ n, v: /^gemini-(\d+(?:\.\d+)?)-flash$/.exec(n) })).filter(x => x.v).sort((a, b) => parseFloat(b.v[1]) - parseFloat(a.v[1]));
+    if (c.length) pick = c[0].n; } catch (e) { if (e.status === 400 || e.status === 403) throw e; }
+  return gemModel.auto = pick;
+}
+async function analyseMeal() {
+  const prompt = 'Estimate the nutrition of the meal in this photo. Identify each food, estimate its portion, and include cooking oil or sauces that are likely present. ' +
+    (meal.note ? 'The person adds this note, which overrides what you see: "' + meal.note + '". ' : '') +
+    'Reply with JSON only, in this shape: {"name": short meal name, "items": [{"name": string, "portion": string, "kcal": number}], "kcal": total number, "protein_g": number, "carbs_g": number, "fat_g": number, "confidence": "low" | "medium" | "high"}. If the photo shows no food, reply {"error": "reason"}.';
+  const body = { contents: [{ parts: [{ inline_data: { mime_type: 'image/jpeg', data: meal.img.split(',')[1] } }, { text: prompt }] }], generationConfig: { responseMimeType: 'application/json', temperature: 0.2 } };
+  let j;
+  try { j = await gemFetch('models/' + await gemModel() + ':generateContent', body); }
+  catch (e) { if (e.status !== 404) throw e; j = await gemFetch('models/' + await gemModel(true) + ':generateContent', body); }
+  const txt = ((((j.candidates || [])[0] || {}).content || {}).parts || []).map(p => p.text || '').join('');
+  let o; try { o = JSON.parse(txt.replace(/^```(?:json)?|```$/gm, '').trim()); } catch (e) { throw new Error('Gemini gave an unreadable answer. Try again.'); }
+  if (Array.isArray(o)) o = o[0] || {};
+  if (o.error || o.kcal == null) throw new Error(o.error || 'No estimate returned. Try another photo.');
+  return { name: o.name || 'Meal', kcal: Math.round(o.kcal), protein: Math.round(o.protein_g || 0), carbs: Math.round(o.carbs_g || 0), fat: Math.round(o.fat_g || 0), confidence: o.confidence,
+    detail: (o.items || []).map(i => i.name + (i.portion ? ' (' + i.portion + ')' : '')).join(', ') };
 }
 
 function vWorkout() {
@@ -394,6 +462,11 @@ function vSettings() {
     ${S.supplements.map((s, i) => `<div class="row" style="padding:6px 0;border-top:${i ? '1px solid var(--line)' : '0'}"><div class="grow"><b style="font-size:15px">${esc(s.name)}</b><div class="muted">${esc(s.dose)} · ${esc(s.when)}</div></div><button class="linkbtn" data-act="delSupp" data-i="${i}" aria-label="Remove ${esc(s.name)}">✕</button></div>`).join('')}
     <div class="grid3" style="margin-top:10px"><div><label for="s_name">Name</label><input id="s_name"></div><div><label for="s_dose">Dose</label><input id="s_dose"></div><div><label for="s_when">When</label><input id="s_when"></div></div>
     <div class="row" style="margin-top:10px"><button class="btn ghost grow" data-act="addSupp">Add supplement</button></div></div>
+  <div class="card"><h2>Meal photo calories (optional)</h2>
+    <div class="muted" style="margin-bottom:10px">“Snap meal” sends the photo to Google Gemini to estimate calories. It needs a free API key from Google AI Studio (aistudio.google.com → Get API key). This is separate from a Gemini app subscription. The key is kept only in this browser.</div>
+    <label for="gem_key">Gemini API key</label><input id="gem_key" type="password" autocomplete="off" value="${esc(localStorage.getItem(GEM_KEY) || '')}">
+    <div style="margin-top:10px"><label for="gem_model">Model (leave empty to pick the newest Flash model automatically)</label><input id="gem_model" autocapitalize="off" autocomplete="off" value="${esc(localStorage.getItem(GEM_MODEL_KEY) || '')}"></div>
+    <div class="row" style="margin-top:10px"><button class="btn grow" data-act="saveGem">Save key</button></div></div>
   <div class="card"><h2>Sync across devices (optional)</h2>
     <div class="muted" style="margin-bottom:10px">Stores your data as one file in a <b>private</b> GitHub repository of yours. Create a private repo, then a fine-grained token limited to that repo with “Contents: read and write”. The token is kept only in this browser.</div>
     <div class="grid"><div><label for="g_owner">GitHub username</label><input id="g_owner" autocapitalize="off" autocomplete="off" value="${esc(S.sync.owner)}"></div>
@@ -449,6 +522,7 @@ function queuePush() { if (!syncOn()) return; clearTimeout(pushTimer); pushTimer
 
 /* ---------- Actions ---------- */
 function upsertWeight(d, kg) { S.weights = S.weights.filter(x => x.d !== d); S.weights.push({ d, kg: r1(kg) }); }
+function addMealRec(m) { const r = dayRec(today()); (r.meals = r.meals || []).push(Object.assign({ id: Date.now() }, m)); meal = null; save(); toast('Added'); render(); }
 const ACT = {
   start(el) { selWorkout = el.dataset.w; tab = 'workout'; render(); scrollTo(0, 0); },
   pick(el) { selWorkout = el.dataset.w; render(); },
@@ -457,7 +531,21 @@ const ACT = {
     big.hidden = !big.hidden; },
   saveTodayWeight() { const kg = num($('#tw').value); if (!kg || kg < 30 || kg > 300) return toast('Enter a weight in kg');
     upsertWeight(today(), kg); save(); toast('Weight saved'); render(); },
-  prot(el) { const r = dayRec(today()); r.protein = Math.max(0, (r.protein || 0) + +el.dataset.g); save(); render(); },
+  snap() { if (!localStorage.getItem(GEM_KEY)) { toast('Add your Gemini key in Settings first'); tab = 'settings'; render(); return; } $('#mealFile').click(); },
+  manualMeal() { meal = { res: {} }; render(); },
+  cancelMeal() { meal = null; render(); },
+  scoop() { addMealRec({ name: 'Whey scoop', kcal: 120, protein: 25, carbs: 3, fat: 2 }); },
+  async analyse() { readMealInputs(); meal.busy = true; meal.err = ''; render(); const mine = meal;
+    try { const res = await analyseMeal(); if (meal !== mine) return; meal.res = res; }
+    catch (e) { if (meal !== mine) return; meal.err = e.message === 'Failed to fetch' ? 'No connection to Gemini. Check your internet.' : e.message; }
+    meal.busy = false; render(); },
+  addMeal() { readMealInputs(); const r = meal.res, kcal = num(r.kcal);
+    if (kcal == null || kcal < 0) return toast('Enter the calories');
+    addMealRec({ name: (r.name || '').trim() || 'Meal', kcal: Math.round(kcal), protein: Math.round(num(r.protein) || 0), carbs: Math.round(num(r.carbs) || 0), fat: Math.round(num(r.fat) || 0), detail: r.detail || '' }); },
+  delMeal(el) { const r = dayRec(today()); r.meals = (r.meals || []).filter(m => String(m.id) !== el.dataset.id); save(); render(); },
+  saveGem() { const k = $('#gem_key').value.trim(), m = $('#gem_model').value.trim();
+    k ? localStorage.setItem(GEM_KEY, k) : localStorage.removeItem(GEM_KEY); m ? localStorage.setItem(GEM_MODEL_KEY, m) : localStorage.removeItem(GEM_MODEL_KEY);
+    gemModel.auto = null; toast(k ? 'Gemini key saved' : 'Gemini key removed'); },
   saveSteps() { const n = num($('#steps').value); dayRec(today()).steps = n ? Math.round(n) : 0; save(); toast('Steps saved'); },
   saveWorkout() { const form = $('#wform'), wk = form.dataset.w, sets = {};
     WORKOUTS[wk].ex.forEach(e => { const arr = [];
@@ -493,7 +581,7 @@ const ACT = {
     a.download = 'fitness-backup-' + today() + '.json'; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000); },
   import() { $('#importFile').click(); },
   reset() { if (!confirm('Erase all fitness data on this device? This cannot be undone.')) return;
-    localStorage.removeItem(KEY); localStorage.removeItem(TOKEN_KEY); S = fresh(); tab = 'settings'; render(); },
+    [KEY, TOKEN_KEY, GEM_KEY, GEM_MODEL_KEY].forEach(k => localStorage.removeItem(k)); S = fresh(); tab = 'settings'; render(); },
 };
 document.addEventListener('click', e => {
   const n = e.target.closest('[data-tab]'); if (n) { tab = n.dataset.tab; selWorkout = null; render(); scrollTo(0, 0); return; }
@@ -504,6 +592,7 @@ document.addEventListener('change', e => {
   if (t.dataset.check) { dayRec(today()).checks[t.dataset.check] = t.checked; save(); }
   else if (t.dataset.sch) { S.schedule[+t.dataset.sch] = t.value; save(); }
   else if (t.id === 'progEx') { progEx = t.value; render(); }
+  else if (t.id === 'mealFile' && t.files[0]) { shrink(t.files[0]).then(img => { meal = { img }; render(); ACT.analyse(); }).catch(e => toast(e.message)); }
   else if (t.id === 'importFile' && t.files[0]) {
     t.files[0].text().then(txt => { const d = JSON.parse(txt); if (!d || !Array.isArray(d.weights)) throw 0;
       S = fix(Object.assign(fresh(), d)); save(); toast('Backup restored'); render(); }).catch(() => toast('That file is not a valid backup'));
