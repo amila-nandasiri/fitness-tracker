@@ -57,7 +57,12 @@ label{display:block;font-size:13px;color:var(--muted);margin-bottom:4px}
 .ex:first-of-type{border-top:0;padding-top:0}
 .ex img.thumb{width:54px;height:54px;object-fit:cover;border-radius:8px;flex:none;background:var(--bg);cursor:pointer}
 .ex .big{display:flex;gap:6px;margin-top:8px}
-.ex .big img{width:50%;border-radius:8px}
+.ex .big img{width:50%;border-radius:8px;cursor:zoom-in;touch-action:manipulation}
+#zoom{position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:20;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:16px}
+#zoom[hidden]{display:none}
+#zoom img{max-width:100%;max-height:78vh;border-radius:10px;touch-action:manipulation}
+#zoom p{color:#fff;font-size:14px;margin:0;text-align:center}
+#zoom button{position:absolute;top:calc(10px + env(safe-area-inset-top));right:12px;background:rgba(255,255,255,.15);color:#fff;border:0;border-radius:999px;width:44px;height:44px;font-size:22px;cursor:pointer}
 .sets{display:grid;grid-template-columns:28px 1fr 1fr;gap:6px;align-items:center;margin-top:8px}
 .sets .h{font-size:12px;color:var(--muted)}
 .sets input{padding:7px 8px;text-align:center}
@@ -92,6 +97,7 @@ svg.chart{width:100%;height:auto;display:block}
 <body>
 <main id="app"></main>
 <div id="toast" role="status"></div>
+<div id="zoom" hidden role="dialog" aria-label="Exercise photo"><button aria-label="Close">✕</button><img alt=""><p></p></div>
 <nav id="nav"></nav>
 <script>
 'use strict';
@@ -350,7 +356,7 @@ function vWorkout() {
         }).join('')}</div></div>`;
     }).join('')}
     <div class="row" style="margin-top:6px"><button class="btn grow" data-act="saveWorkout">Save workout</button></div>
-    <div class="muted" style="margin-top:8px">Warm up for 5 minutes first and finish with 15–20 minutes of treadmill walking or cycling. Exercise photos: free-exercise-db (public domain).</div>
+    <div class="muted" style="margin-top:8px">Warm up for 5 minutes first and finish with 15–20 minutes of treadmill walking or cycling. Tap a photo to see both positions, then double-tap one to enlarge it. Photos: free-exercise-db (public domain).</div>
   </div>
   <div class="card"><h2>This week</h2>
     <table><tbody>${DAYS.map((n, i) => `<tr><td style="width:56px">${i === dayIdx() ? '<b>' + n + '</b>' : n}</td><td>${S.schedule[i] ? esc(WORKOUTS[S.schedule[i]].name) + ' <span class="muted">· ' + esc(WORKOUTS[S.schedule[i]].focus) + '</span>' : '<span class="muted">Rest</span>'}</td></tr>`).join('')}</tbody></table>
@@ -527,7 +533,7 @@ const ACT = {
   start(el) { selWorkout = el.dataset.w; tab = 'workout'; render(); scrollTo(0, 0); },
   pick(el) { selWorkout = el.dataset.w; render(); },
   img(el) { const big = el.closest('.ex').querySelector('.big');
-    if (!big.innerHTML) big.innerHTML = [0, 1].map(i => `<img alt="" src="${IMG + el.dataset.id}/${i}.jpg" onerror="this.remove()">`).join('');
+    if (!big.innerHTML) big.innerHTML = [0, 1].map(i => `<img alt="" data-zoom="${i}" data-id="${el.dataset.id}" src="${IMG + el.dataset.id}/${i}.jpg" onerror="this.remove()">`).join('');
     big.hidden = !big.hidden; },
   saveTodayWeight() { const kg = num($('#tw').value); if (!kg || kg < 30 || kg > 300) return toast('Enter a weight in kg');
     upsertWeight(today(), kg); save(); toast('Weight saved'); render(); },
@@ -583,7 +589,14 @@ const ACT = {
   reset() { if (!confirm('Erase all fitness data on this device? This cannot be undone.')) return;
     [KEY, TOKEN_KEY, GEM_KEY, GEM_MODEL_KEY].forEach(k => localStorage.removeItem(k)); S = fresh(); tab = 'settings'; render(); },
 };
+let lastTap = { el: null, t: 0 }, zoomAt = null;
+function showZoom(id, i) { zoomAt = { id, i }; const z = $('#zoom'); $('img', z).src = IMG + id + '/' + i + '.jpg';
+  $('p', z).textContent = (i ? 'Finish' : 'Start') + ' position · tap the photo to switch'; z.hidden = false; }
 document.addEventListener('click', e => {
+  const z = e.target.closest('#zoom');
+  if (z) { if (e.target.tagName === 'IMG') showZoom(zoomAt.id, zoomAt.i ? 0 : 1); else z.hidden = true; return; }
+  const zi = e.target.closest('[data-zoom]');
+  if (zi) { const now = Date.now(); if (lastTap.el === zi && now - lastTap.t < 400) { showZoom(zi.dataset.id, +zi.dataset.zoom); lastTap.el = null; } else lastTap = { el: zi, t: now }; return; }
   const n = e.target.closest('[data-tab]'); if (n) { tab = n.dataset.tab; selWorkout = null; render(); scrollTo(0, 0); return; }
   const a = e.target.closest('[data-act]'); if (a && ACT[a.dataset.act]) ACT[a.dataset.act](a);
 });
@@ -598,6 +611,7 @@ document.addEventListener('change', e => {
       S = fix(Object.assign(fresh(), d)); save(); toast('Backup restored'); render(); }).catch(() => toast('That file is not a valid backup'));
   }
 });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') $('#zoom').hidden = true; });
 document.addEventListener('visibilitychange', () => { if (!document.hidden) syncNow(false); });
 if (syncOn()) syncMsg = 'Sync is on.';
 render();
