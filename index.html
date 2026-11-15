@@ -57,10 +57,10 @@ label{display:block;font-size:13px;color:var(--muted);margin-bottom:4px}
 .ex:first-of-type{border-top:0;padding-top:0}
 .ex img.thumb{width:54px;height:54px;object-fit:cover;border-radius:8px;flex:none;background:var(--bg);cursor:pointer}
 .ex .big{display:flex;gap:6px;margin-top:8px}
-.ex .big img{width:50%;border-radius:8px;cursor:zoom-in;touch-action:manipulation}
-#zoom{position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:20;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:16px}
+.ex .big img{width:50%;border-radius:8px;cursor:pointer;touch-action:manipulation;-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
+#zoom{cursor:pointer;position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:20;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:16px}
 #zoom[hidden]{display:none}
-#zoom img{max-width:100%;max-height:78vh;border-radius:10px;touch-action:manipulation}
+#zoom img{cursor:pointer;-webkit-touch-callout:none;max-width:100%;max-height:78vh;border-radius:10px;touch-action:manipulation}
 #zoom p{color:#fff;font-size:14px;margin:0;text-align:center}
 #zoom button{position:absolute;top:calc(10px + env(safe-area-inset-top));right:12px;background:rgba(255,255,255,.15);color:#fff;border:0;border-radius:999px;width:44px;height:44px;font-size:22px;cursor:pointer}
 .sets{display:grid;grid-template-columns:28px 1fr 1fr;gap:6px;align-items:center;margin-top:8px}
@@ -596,7 +596,7 @@ document.addEventListener('click', e => {
   const z = e.target.closest('#zoom');
   if (z) { if (e.target.tagName === 'IMG') showZoom(zoomAt.id, zoomAt.i ? 0 : 1); else z.hidden = true; return; }
   const zi = e.target.closest('[data-zoom]');
-  if (zi) { const now = Date.now(); if (lastTap.el === zi && now - lastTap.t < 400) { showZoom(zi.dataset.id, +zi.dataset.zoom); lastTap.el = null; } else lastTap = { el: zi, t: now }; return; }
+  if (zi) { const now = Date.now(); if (lastTap.el === zi && now - lastTap.t < 600) { showZoom(zi.dataset.id, +zi.dataset.zoom); lastTap.el = null; } else lastTap = { el: zi, t: now }; return; }
   const n = e.target.closest('[data-tab]'); if (n) { tab = n.dataset.tab; selWorkout = null; render(); scrollTo(0, 0); return; }
   const a = e.target.closest('[data-act]'); if (a && ACT[a.dataset.act]) ACT[a.dataset.act](a);
 });
@@ -611,6 +611,7 @@ document.addEventListener('change', e => {
       S = fix(Object.assign(fresh(), d)); save(); toast('Backup restored'); render(); }).catch(() => toast('That file is not a valid backup'));
   }
 });
+document.addEventListener('dblclick', e => { const zi = e.target.closest('[data-zoom]'); if (zi && $('#zoom').hidden) { showZoom(zi.dataset.id, +zi.dataset.zoom); lastTap.el = null; } });
 document.addEventListener('keydown', e => { if (e.key === 'Escape') $('#zoom').hidden = true; });
 document.addEventListener('visibilitychange', () => { if (!document.hidden) syncNow(false); });
 if (syncOn()) syncMsg = 'Sync is on.';
